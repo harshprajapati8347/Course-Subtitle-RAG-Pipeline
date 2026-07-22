@@ -9,7 +9,8 @@
     "lint": "eslint",
     "ingest": "tsx scripts/ingest.ts",
     "retrieve": "tsx scripts/retrieve.ts",
-    "ask": "tsx scripts/ask.ts"
+    "ask": "tsx scripts/ask.ts",
+    "pipeline": "tsx scripts/pipeline.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",
