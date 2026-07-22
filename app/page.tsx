@@ -1,65 +1,96 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import { useRef, useState } from "react";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { ChatMessageBubble } from "@/components/chat/chat-message";
+import { ChatInput } from "@/components/chat/chat-input";
+import type { AskResponse } from "@/types/api";
+import type { ChatMessage } from "@/types/chat";
+
+function makeId(): string {
+  return crypto.randomUUID();
+}
+
+export default function ChatPage() {
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const bottomRef = useRef<HTMLDivElement>(null);
+
+  function scrollToBottom() {
+    requestAnimationFrame(() => {
+      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    });
+  }
+
+  async function handleSend(question: string) {
+    setMessages((prev) => [...prev, { id: makeId(), role: "user", content: question }]);
+    setIsLoading(true);
+    scrollToBottom();
+
+    try {
+      const response = await fetch("/api/ask", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question }),
+      });
+      const data = (await response.json()) as AskResponse;
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: makeId(),
+          role: "assistant",
+          content: data.blocked ? (data.blockReason ?? "This question was blocked.") : (data.answer ?? ""),
+          citations: data.citations,
+          blocked: data.blocked,
+          isValidated: data.isValidated,
+        },
+      ]);
+    } catch {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: makeId(),
+          role: "assistant",
+          content: "Something went wrong reaching the server. Please try again.",
+          blocked: true,
+        },
+      ]);
+    } finally {
+      setIsLoading(false);
+      scrollToBottom();
+    }
+  }
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+    <div className="flex flex-1 flex-col items-center bg-zinc-50 dark:bg-black">
+      <div className="flex h-screen w-full max-w-3xl flex-col bg-white dark:bg-black">
+        <header className="flex flex-col gap-1 border-b border-border px-6 py-4">
+          <h1 className="text-lg font-semibold">Course Q&amp;A Assistant</h1>
+          <p className="text-sm text-muted-foreground">
+            Ask questions about the indexed course and get grounded, cited answers.
           </p>
+        </header>
+
+        <ScrollArea className="flex-1">
+          <div className="flex flex-col gap-4 px-6 py-6">
+            {messages.length === 0 && (
+              <p className="text-sm text-muted-foreground">
+                No messages yet — ask a question about the course to get started.
+              </p>
+            )}
+            {messages.map((message) => (
+              <ChatMessageBubble key={message.id} message={message} />
+            ))}
+            {isLoading && <p className="text-sm text-muted-foreground">Thinking…</p>}
+            <div ref={bottomRef} />
+          </div>
+        </ScrollArea>
+
+        <div className="border-t border-border px-6 py-4">
+          <ChatInput onSubmit={handleSend} disabled={isLoading} />
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+      </div>
     </div>
   );
 }
