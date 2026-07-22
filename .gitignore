@@ -40,5 +40,5 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-Advanced-RAG-Pipeline-Architecture.md
+# Advanced-RAG-Pipeline-Architecture.md
 feature-specs
